@@ -36,7 +36,7 @@ process.load("Configuration.Geometry.GeometryIdeal_cff")
 process.load("Configuration.StandardSequences.MagneticField_cff")
 
 #---- Define the test source files to be read using the xrootd protocol (root://), or local files (file:)
-process.source = cms.Source("PoolSource", fileNames = cms.untracked.vstring(         
+process.source = cms.Source("PoolSource", fileNames = cms.untracked.vstring(
         #'root://eospublic.cern.ch//eos/opendata/cms/mc/RunIIFall15MiniAODv2/DYJetsToLL_M-10to50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/MINIAODSIM/PU25nsData2015v1_76X_mcRun2_asymptotic_v12-v1/00000/0005EA25-8CB8-E511-A910-00266CF85DA0.root'   
         'root://eospublic.cern.ch//eos/opendata/cms/mc/RunIIFall15MiniAODv2/TT_TuneCUETP8M1_13TeV-powheg-pythia8/MINIAODSIM/PU25nsData2015v1_76X_mcRun2_asymptotic_v12_ext3-v1/00000/02837459-03C2-E511-8EA2-002590A887AC.root'
         )
@@ -81,7 +81,21 @@ process.mytaus = cms.EDAnalyzer('TauAnalyzer', taus=cms.InputTag("slimmedTaus"))
 
 process.myphotons = cms.EDAnalyzer('PhotonAnalyzer', photons=cms.InputTag("slimmedPhotons"))
 
-process.mytriggers = cms.EDAnalyzer('TriggObjectAnalyzer', objects = cms.InputTag("selectedPatTrigger"))
+#---- Module to store trigger objects (functional but not fully developed yet) -------#
+#process.mytrigobjs = cms.EDAnalyzer('TriggObjectAnalyzer', objects = cms.InputTag("selectedPatTrigger"))
+
+#---- Example on how to add trigger information
+#---- To include it, uncomment the lines below and include the
+#---- module in the final path
+#process.mytriggers = cms.EDAnalyzer('TriggerAnalyzer',
+#                              processName = cms.string("HLT"),
+#                              #---- These are example of OR of triggers for 2015
+#                              #---- Wildcards * and ? are accepted (with usual meanings)
+#                              #---- If left empty, all triggers will run              
+#                              triggerPatterns = cms.vstring("HLT_IsoMu20_v*","HLT_IsoTkMu20_v*"), 
+#                              triggerResults = cms.InputTag("TriggerResults","","HLT")
+#                              )
+
 
 process.mypvertex = cms.EDAnalyzer('VertexAnalyzer',
                                    vertices=cms.InputTag("offlineSlimmedPrimaryVertices"), 
@@ -172,19 +186,33 @@ process.slimmedMETsNewJEC = cms.EDProducer('CorrectedPATMETProducer',
 #----- Configure the POET MET analyzer -----#
 process.mymets = cms.EDAnalyzer('MetAnalyzer',mets=cms.InputTag("slimmedMETsNewJEC"),rawmets=cms.InputTag("uncorrectedPatMet"))
 
+
+#---- Example of a very basic home-made filter to select only events of interest
+#---- The filter can be added to the running path below if needed 
+#---- by uncommenting the lines below, but it is not applied by default
+#process.elemufilter = cms.EDFilter('SimpleEleMuFilter',
+#                                   electrons = cms.InputTag("slimmedElectrons"),
+#                                   muons = cms.InputTag("slimmedMuons"),
+#                                   vertices=cms.InputTag("offlineSlimmedPrimaryVertices"),
+#                                   mu_minpt = cms.double(26),
+#                                   mu_etacut = cms.double(2.1),
+#                                   ele_minpt = cms.double(26),
+#                                   ele_etacut = cms.double(2.1)
+#                                   )
+
+
+
 #----- RUN THE JOB! -----#
 process.TFileService = cms.Service("TFileService", fileName=cms.string("myoutput.root"))
 
 if isData:
-	process.p = cms.Path(process.myelectrons+process.mymuons+process.mytaus+process.myphotons+
-                     process.mytriggers+process.mypvertex+
+	process.p = cms.Path(process.myelectrons+process.mymuons+process.mytaus+process.myphotons+process.mypvertex+
                      process.looseAK4Jets+process.patJetCorrFactorsReapplyJEC+process.slimmedJetsNewJEC+process.myjets+
                      process.looseAK8Jets+process.patJetCorrFactorsReapplyJECAK8+process.slimmedJetsAK8NewJEC+process.myfatjets+
                      process.uncorrectedMet+process.uncorrectedPatMet+process.Type1CorrForNewJEC+process.slimmedMETsNewJEC+process.mymets
                      )
 else:
-	process.p = cms.Path(process.myelectrons+process.mymuons+process.mytaus+process.myphotons+
-                     process.mytriggers+process.mypvertex+process.mygenparticle+
+	process.p = cms.Path(process.myelectrons+process.mymuons+process.mytaus+process.myphotons+process.mypvertex+process.mygenparticle+
                      process.looseAK4Jets+process.patJetCorrFactorsReapplyJEC+process.slimmedJetsNewJEC+process.myjets+
                      process.looseAK8Jets+process.patJetCorrFactorsReapplyJECAK8+process.slimmedJetsAK8NewJEC+process.myfatjets+
                      process.uncorrectedMet+process.uncorrectedPatMet+process.Type1CorrForNewJEC+process.slimmedMETsNewJEC+process.mymets
