@@ -2,6 +2,7 @@ import FWCore.ParameterSet.Config as cms
 import FWCore.Utilities.FileUtils as FileUtils
 import FWCore.PythonUtilities.LumiList as LumiList
 import FWCore.ParameterSet.Types as CfgTypes
+from FWCore.ParameterSet.VarParsing import VarParsing
 import sys
 
 #---- sys.argv takes the parameters given as input cmsRun PhysObjectExtractor/python/poet_cfg.py <isData (default=False)>
@@ -9,10 +10,16 @@ import sys
 #---- NB the first two parameters are always "cmsRun" and the config file name
 #---- Work with data (if False, assumed MC simulations)
 #---- This needs to be in agreement with the input files/datasets below.
+options = VarParsing ('analysis')
+isData = False
 if len(sys.argv) > 2:
-    isData = eval(sys.argv[2])
-else:
-    isData = False
+    try:
+        isData = eval(sys.argv[2])
+        sys.argv.pop( 2 )
+        print "isData is set to ",isData
+    except:
+        pass
+options.parseArguments()
 isMC = True
 if isData: isMC = False
 
@@ -186,6 +193,18 @@ process.slimmedMETsNewJEC = cms.EDProducer('CorrectedPATMETProducer',
 #----- Configure the POET MET analyzer -----#
 process.mymets = cms.EDAnalyzer('MetAnalyzer',mets=cms.InputTag("slimmedMETsNewJEC"),rawmets=cms.InputTag("uncorrectedPatMet"))
 
+process.mytriggers = cms.EDAnalyzer('TriggerAnalyzer',
+                              processName = cms.string("HLT"),
+                              #---- These are example triggers for 2012
+                              #---- Wildcards * and ? are accepted (with usual meanings)
+                               #---- If left empty, all triggers will run              
+                              triggerPatterns = cms.vstring("HLT_L2DoubleMu23_NoVertex_v*","HLT_Mu12_v*", "HLT_Photon20_CaloIdVL_v*", "HLT_Ele22_CaloIdL_CaloIsoVL_v*", "HLT_Jet370_NoJetID_v*"), 
+                              triggerResults = cms.InputTag("TriggerResults","","HLT"),
+                              triggerEvent   = cms.InputTag("hltTriggerSummaryAOD","","HLT")                             
+                              )
+process.mypackedcandidate = cms.EDAnalyzer('PackedCandidateAnalyzer',
+                                           packed=cms.InputTag("packedPFCandidates")
+                                           )
 
 #---- Example of a very basic home-made filter to select only events of interest
 #---- The filter can be added to the running path below if needed 
@@ -210,11 +229,22 @@ if isData:
                      process.looseAK4Jets+process.patJetCorrFactorsReapplyJEC+process.slimmedJetsNewJEC+process.myjets+
                      process.looseAK8Jets+process.patJetCorrFactorsReapplyJECAK8+process.slimmedJetsAK8NewJEC+process.myfatjets+
                      process.uncorrectedMet+process.uncorrectedPatMet+process.Type1CorrForNewJEC+process.slimmedMETsNewJEC+process.mymets
+#                    +process.mypackedcandidate
                      )
 else:
 	process.p = cms.Path(process.myelectrons+process.mymuons+process.mytaus+process.myphotons+process.mypvertex+process.mygenparticle+
                      process.looseAK4Jets+process.patJetCorrFactorsReapplyJEC+process.slimmedJetsNewJEC+process.myjets+
                      process.looseAK8Jets+process.patJetCorrFactorsReapplyJECAK8+process.slimmedJetsAK8NewJEC+process.myfatjets+
                      process.uncorrectedMet+process.uncorrectedPatMet+process.Type1CorrForNewJEC+process.slimmedMETsNewJEC+process.mymets
+#                    +process.mypackedcandidate
                      )
+process.maxEvents.input = options.maxEvents
+process.TFileService.fileName = options.outputFile
+if len(options.inputFiles) > 0:
+    process.source.fileNames=options.inputFiles
 
+print "Processing for maxEvents =  ",process.maxEvents.input
+print "Processing input files "
+for fl in process.source.fileNames:
+    print "  > ",fl
+print "Output filename : ",process.TFileService.fileName
